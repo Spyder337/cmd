@@ -42,6 +42,8 @@ pub enum Commands {
         #[arg(long = "allintext")]
         all_in_text: Option<String>,
     },
+    #[command(about = "Gets a random quote if no flags are provided.")]
+    Quotes {},
 }
 
 pub fn handle_commands(cli: &Cli) -> () {
@@ -66,6 +68,7 @@ pub fn handle_commands(cli: &Cli) -> () {
 
                 basic_search(search, open);
             }
+            Commands::Quotes {} => todo!(),
         },
         None => println!("No command provided."),
     }

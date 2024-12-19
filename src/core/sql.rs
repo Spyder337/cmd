@@ -1,8 +1,27 @@
-use std::fs;
+use std::{fmt::Display, fs, path::PathBuf};
 
+use lazy_static::lazy_static;
 use rusqlite::{Connection, params};
 
-pub const SQL_FILE: &str = "rsrc/database.sql";
+lazy_static! {
+    pub static ref SQL_FILE: PathBuf = std::env::current_exe()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("rsrc/database.sql");
+    pub static ref SQL_DATABASE: PathBuf = std::env::current_exe()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("rsrc/database.db");
+}
+
+// pub const SQL_FILE: &str = std::env::current_exe()
+//     .unwrap()
+//     .parent()
+//     .unwrap()
+//     .join("rsrc/database.sql");
+
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 pub fn box_error<T>(err: Option<T>) -> Box<dyn std::error::Error>
@@ -12,10 +31,116 @@ where
     Box::new(err.unwrap())
 }
 
+pub enum Tables {
+    ShellCommanders,
+    Quotes,
+    DailyQuotes,
+}
+
+pub enum Action {
+    Insert(Tables),
+    Update(Tables),
+    Delete(Tables),
+    Select(Tables),
+}
+
+impl Display for Tables {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Tables::ShellCommanders => "ShellCommanders".to_string(),
+            Tables::Quotes => "Quotes".to_string(),
+            Tables::DailyQuotes => "DailyQuotes".to_string(),
+        };
+        write!(f, "{}", s)
+    }
+}
+
+pub struct Storage {
+    conn: Connection,
+}
+
+impl Storage {
+    pub fn new(db_path: &str) -> Result<Self> {
+        let conn = Connection::open(db_path)?;
+        Ok(Storage { conn })
+    }
+
+    pub fn init(&self) -> Result<()> {
+        let text_res = fs::read_to_string(SQL_FILE.as_path());
+
+        if let Ok(text) = text_res {
+            self.conn.execute_batch(&text)?;
+            return Ok(());
+        }
+
+        Err(box_error(text_res.err()))
+    }
+
+    fn insert(&self, table: Tables, values: Vec<String>) -> Result<usize> {
+        let s = format!("INSERT INTO OR IGNORE {}", table);
+        let end = match table {
+            Tables::ShellCommanders => " (VAR, VAL) VALUES (?1, ?2)",
+            Tables::Quotes => " (QUOTE, AUTHOR) VALUES (?1, ?2)",
+            Tables::DailyQuotes => " (QUOTE_ID, DATE) VALUES (?1, ?2)",
+        };
+        let conflict = match table {
+            Tables::ShellCommanders => " ON CONFLICT(VAR) DO UPDATE SET VAL = excluded.VAL",
+            Tables::Quotes => " ON CONFLICT(QUOTE) DO UPDATE SET AUTHOR = excluded.AUTHOR",
+            Tables::DailyQuotes => " ON CONFLICT(DATE) DO UPDATE SET VAL = excluded.QUOTE_ID",
+        };
+        let query_str = format!("{}{}{}", s, end, conflict);
+        let query = self.conn.execute(&query_str, params![values[0], values[1]]);
+
+        if query.is_err() {
+            return Err(box_error(query.err()));
+        } else {
+            return Ok(query.unwrap());
+        }
+    }
+
+    pub fn query_string(&self, action: Action) -> String {
+        //  For each action and table generate an appropriate query string
+        let mut query = match action {
+            Action::Insert(tables) => {
+                let s = format!("INSERT INTO OR IGNORE {}", tables);
+                let end = match tables {
+                    Tables::ShellCommanders => " (VAR, VAL) VALUES (?1, ?2)",
+                    Tables::Quotes => " (QUOTE, AUTHOR) VALUES (?1, ?2)",
+                    Tables::DailyQuotes => " (QUOTE_ID, DATE) VALUES (?1, ?2)",
+                };
+                let conflict = match tables {
+                    Tables::ShellCommanders => " ON CONFLICT(VAR) DO UPDATE SET VAL = excluded.VAL",
+                    Tables::Quotes => " ON CONFLICT(QUOTE) DO UPDATE SET AUTHOR = excluded.AUTHOR",
+                    Tables::DailyQuotes => {
+                        " ON CONFLICT(DATE) DO UPDATE SET VAL = excluded.QUOTE_ID"
+                    }
+                };
+                format!("{}{}{}", s, end, conflict)
+            }
+            Action::Update(tables) => todo!(),
+            Action::Delete(tables) => todo!(),
+            Action::Select(tables) => todo!(),
+        };
+        String::new()
+    }
+}
+
 pub struct Item {
     pub id: i32,
     pub var: String,
     pub val: Option<String>,
+}
+
+pub struct Quote {
+    pub id: u32,
+    pub quote: String,
+    pub author: String,
+}
+
+pub struct DailyQuote {
+    pub id: u32,
+    pub quote_id: u32,
+    pub date: String,
 }
 
 pub struct Database {
@@ -24,12 +149,13 @@ pub struct Database {
 
 impl Database {
     pub fn new(db_path: &str) -> Result<Self> {
+        // println!("Database path: {}", db_path);
         let conn = Connection::open(db_path)?;
         Ok(Database { conn })
     }
 
     pub fn create_table(&self) -> Result<()> {
-        let text_res = fs::read_to_string(SQL_FILE);
+        let text_res = fs::read_to_string(SQL_FILE.as_path());
 
         if let Ok(text) = text_res {
             self.conn.execute_batch(&text)?;

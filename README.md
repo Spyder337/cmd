@@ -88,7 +88,7 @@ Options:
 
 #### Commands
 
-- [x] git **(6/6)**
+- [x] git **(7/7)**
 
     Contains all the functionality for managing a git repo and easily interacting with repos on disk.
 
@@ -98,6 +98,7 @@ Options:
   - [x] fetch-ignore
   - [x] fetch-ignores
   - [x] list
+  - [x] create empty repo
 - [ ] web-search **(2/2)**
 
     Contains the functionality for performing google search queries.
@@ -127,7 +128,7 @@ Options:
   - [ ] Saved Quotes
   - [ ] Online Database
 
-**Progress**: **8/13**
+**Progress**: **9/14**
 
 ## Credits
 

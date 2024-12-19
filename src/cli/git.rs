@@ -1,11 +1,11 @@
-use std::{fs, path::Path}; // Add this line to import the crate
+use std::{fs, io::Write, path::Path}; // Add this line to import the crate
 
 use clap::{Subcommand, ValueHint, command};
-use git2::{Repository, StatusOptions};
+use git2::{Repository, Status, StatusOptions};
 
 use crate::{create_commit, message_short, time_now};
 
-use super::get_git_dir;
+use super::{GIT_AUTHOR, get_git_dir};
 
 /// # Summary
 /// Git related commands for the CLI.
@@ -67,6 +67,7 @@ To get a list of all of the valid ignore names use the fetch-ignores command."#
     FetchIgnore {
         #[arg(help = "Ignore file names", num_args= 1..,)]
         files: Vec<String>,
+        write_file: bool,
     },
     #[command(
         about = "Display valid ignore files.",
@@ -79,6 +80,15 @@ To get a list of all of the valid ignore names use the fetch-ignores command."#
             help = "Search for a specific ignore file."
         )]
         name: Option<String>,
+    },
+    #[command(
+        about = "Create a new repo.",
+        long_about = r###"Create a new repo in the user's git directory."###
+    )]
+    New {
+        name: String,
+        #[arg(short = 'i', long)]
+        ignores: Option<Vec<String>>,
     },
 }
 
@@ -111,8 +121,45 @@ pub(crate) fn handle_commands(command: &GitCommands) {
             let dir = get_dir_exec();
             println!("Path: {}", dir.to_str().unwrap());
         }
-        GitCommands::FetchIgnore { files } => fetch_ignore_exec(&files),
+        GitCommands::FetchIgnore { files, write_file } => fetch_ignore_exec(&files, *write_file),
         GitCommands::FetchIgnores { name } => fetch_ignores_exec(name),
+        GitCommands::New { name, ignores } => {
+            let mut ignore_list = Vec::new();
+            if ignores.is_some() {
+                ignore_list = ignores.clone().unwrap();
+            }
+            new_repo(name, &ignore_list);
+        }
+    }
+}
+
+fn new_repo(name: &String, ignores: &Vec<String>) {
+    let path = get_git_dir()
+        .join(Path::new(GIT_AUTHOR.lock().unwrap().as_str()))
+        .join(name);
+    println!("Creating new repo: {:?}", path);
+    //  Create the directory.
+    if !path.exists() {
+        fs::create_dir_all(&path).unwrap();
+    }
+    let ignore_path = path.join(".gitignore");
+    let ignore_txt = fetch_ignores(ignores.as_slice());
+
+    let repo = Repository::init(&path);
+
+    if repo.is_err() {
+        println!("Failed to create the repo.\n{:?}", repo.err());
+        return;
+    }
+
+    let path = repo.unwrap().workdir().unwrap().to_path_buf();
+
+    println!("Repo created at: {:#?}", path);
+
+    let mut ignore_file = fs::File::create(&ignore_path).unwrap();
+    let write_res = ignore_file.write(ignore_txt.as_bytes());
+    if write_res.is_err() {
+        println!("Failed to write to the ignore file.\n{:?}", write_res.err());
     }
 }
 
@@ -142,6 +189,8 @@ fn update_exec(
         return;
     }
 
+    let path_specs = paths.clone().unwrap_or(vec![".".to_string()]);
+
     let r = &mut repo.unwrap();
     let mut _removing = false;
     if let Some(val) = remove {
@@ -155,8 +204,7 @@ fn update_exec(
         // println!("Staging new files...");
 
         //  Equivalent to git add --update
-
-        crate::git::core::add_files(r, &paths.clone().unwrap(), None);
+        crate::git::core::add_files(r, &path_specs, None);
         //  Git Command: git stage $path
         //  Use `git status -s` to generate an organized change list.
         let mut commit_msg = String::with_capacity(1536);
@@ -203,8 +251,26 @@ fn update_exec(
         // Generate the status message
         let statuses = r.statuses(Some(&mut StatusOptions::new()));
 
-        if let Ok(s) = statuses {
-            status_msg.push_str(&message_short(&r, &s));
+        for s in statuses.unwrap().iter().map(|a| a) {
+            if let Some(p) = s.path() {
+                for path in path_specs.clone() {
+                    if !p.contains(&path) {
+                        continue;
+                    }
+                }
+            }
+            match s.status() {
+                Status::WT_NEW | Status::INDEX_NEW => {
+                    status_msg.push_str(format!("A {}\n", s.path().unwrap()).as_str());
+                }
+                Status::WT_MODIFIED | Status::INDEX_MODIFIED => {
+                    status_msg.push_str(format!("M {}\n", s.path().unwrap()).as_str());
+                }
+                Status::WT_DELETED | Status::INDEX_DELETED => {
+                    status_msg.push_str(format!("D {}\n", s.path().unwrap()).as_str());
+                }
+                _ => (),
+            }
         }
 
         //  Append the status message.
@@ -279,12 +345,30 @@ fn get_dir_exec() -> Box<Path> {
     crate::git::get_git_dir()
 }
 
-fn fetch_ignore_exec(ignores: &[String]) -> () {
+fn fetch_ignore_exec(ignores: &[String], write_file: bool) -> () {
+    if !write_file {
+        fetch_ignores(ignores);
+    } else {
+        let ignore_txt = fetch_ignores(ignores);
+        let path = Path::new(".gitignore");
+        let mut ignore_file = fs::File::create(path).unwrap();
+        let write_res = ignore_file.write(ignore_txt.as_bytes());
+        if write_res.is_err() {
+            println!("Failed to write to the ignore file.\n{:?}", write_res.err());
+        }
+    }
+}
+
+fn fetch_ignores(ignores: &[String]) -> String {
+    if ignores.is_empty() {
+        println!("No ignore files provided.");
+        return String::new();
+    }
     let url = "https://www.toptal.com/developers/gitignore/api/";
     let full_url = format!("{}{}", url, ignores.join(","));
     let res = reqwest::blocking::get(full_url).unwrap();
     let body = res.text().unwrap();
-    println!("{}", body);
+    body
 }
 
 fn get_ignore_list(name: &Option<String>) -> Vec<String> {

@@ -445,12 +445,17 @@ pub fn message_short(repo: &Repository, statuses: &git2::Statuses) -> String {
 pub fn add_files(repo: &mut Repository, paths: &Vec<String>, update: Option<bool>) {
     let mut index = repo.index().unwrap();
     let is_update = update.unwrap_or(false);
+
+    //  Paths are passed into update_all or add_all and those paths
+    //  are filtered by this function.
+    //  0 is returned if the path is added to the index.
+    //  1 is returned if the path is not added to the index.
+    //  0< is returned if an error occurs.
     let cb = &mut |path: &Path, _matched_spec: &[u8]| -> i32 {
         let status = repo.status_file(path).unwrap();
         let ret = if status.contains(git2::Status::WT_MODIFIED)
             || status.contains(git2::Status::WT_NEW)
         {
-            println!("Add '{}'", path.display());
             0
         } else {
             1
@@ -477,8 +482,8 @@ pub fn add_files(repo: &mut Repository, paths: &Vec<String>, update: Option<bool
 pub fn create_commit(repo: &Repository, commit_msg: String) -> Result<Oid, git2::Error> {
     // Get the index and write it as a tree
     let mut index = repo.index()?;
-    index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
-    index.write()?;
+    // index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
+    // index.write()?;
     let tree_oid = index.write_tree()?;
     let tree = repo.find_tree(tree_oid)?;
 

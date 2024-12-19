@@ -8,7 +8,10 @@ use directories::BaseDirs;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
-use crate::Database;
+use crate::{
+    Database,
+    core::sql::{SQL_DATABASE, SQL_FILE},
+};
 
 pub mod core;
 
@@ -30,7 +33,7 @@ pub fn get_git_info(db: &Database) -> (Box<Path>, String, String) {
 /// # Summary
 /// Prints the git_dir, author, and email to the console.
 pub fn display_git_info() {
-    let db = crate::Database::new("rsrc/database.db").unwrap();
+    let db = crate::Database::new(SQL_DATABASE.to_str().unwrap()).unwrap();
     let _ = db.create_table();
     let (g_path, author, email) = get_git_info(&db);
     println!(
@@ -57,7 +60,7 @@ fn get_git_dir_db(db: &Database) -> Box<Path> {
 /// If there is no entry in the database then a default value of
 /// `~/user/Code` is returned.
 pub fn get_git_dir() -> Box<Path> {
-    let db = crate::Database::new("rsrc/database.db").unwrap();
+    let db = crate::Database::new(SQL_DATABASE.to_str().unwrap()).unwrap();
     let mut dir = get_git_dir_db(&db);
     if dir.starts_with("~") {
         let home = BaseDirs::new().unwrap();
@@ -77,7 +80,7 @@ pub fn get_git_dir() -> Box<Path> {
 /// # Summary
 /// If the directory is successfully set then the function returns true.
 pub fn set_git_dir(path: &str) -> bool {
-    let db = crate::Database::new("rsrc/database.db").unwrap();
+    let db = crate::Database::new(SQL_DATABASE.to_str().unwrap()).unwrap();
     let res = db.insert_or_update_item("GIT_DIR", Some(path));
     if res.is_ok() {
         *GIT_DIR.lock().unwrap() = path.to_string();
@@ -101,7 +104,7 @@ fn get_git_author_db(db: &Database) -> String {
 /// If there is no entry in the database then a default value of
 /// `Author` is returned.
 pub fn get_git_author() -> String {
-    let db = crate::Database::new("rsrc/database.db").unwrap();
+    let db = crate::Database::new(SQL_DATABASE.to_str().unwrap()).unwrap();
     let author = get_git_author_db(&db);
     author
 }
@@ -109,7 +112,7 @@ pub fn get_git_author() -> String {
 /// # Summary
 /// If the author is successfully set then the function returns true.
 pub fn set_git_author(author: &str) -> bool {
-    let db = crate::Database::new("rsrc/database.db").unwrap();
+    let db = crate::Database::new(SQL_DATABASE.to_str().unwrap()).unwrap();
     let res = db.insert_or_update_item("GIT_AUTHOR", Some(author));
     if res.is_ok() {
         *GIT_AUTHOR.lock().unwrap() = author.to_string();
@@ -133,7 +136,7 @@ fn get_git_email_db(db: &Database) -> String {
 /// If there is no entry in the database then a default value of
 /// `Author` is returned.
 pub fn get_git_email() -> String {
-    let db = crate::Database::new("rsrc/database.db").unwrap();
+    let db = crate::Database::new(SQL_DATABASE.to_str().unwrap()).unwrap();
     let email = get_git_email_db(&db);
     email
 }
@@ -141,7 +144,7 @@ pub fn get_git_email() -> String {
 /// # Summary
 /// If the email is successfully set then the function returns true.
 pub fn set_git_email(email: &str) -> bool {
-    let db = crate::Database::new("rsrc/database.db").unwrap();
+    let db = crate::Database::new(SQL_DATABASE.to_str().unwrap()).unwrap();
     let res = db.insert_or_update_item("GIT_EMAIL", Some(email));
 
     if let Ok(_updated) = res {
@@ -163,6 +166,6 @@ fn get_git_ignore_url_db(db: &Database) -> String {
 }
 
 pub fn get_git_ignore_url() -> String {
-    let db = Database::new("rsrc/database.db").unwrap();
+    let db = Database::new(SQL_DATABASE.to_str().unwrap()).unwrap();
     get_git_author_db(&db)
 }
