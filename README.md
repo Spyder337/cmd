@@ -130,6 +130,12 @@ Options:
 
 **Progress**: **9/14**
 
+#### Database
+
+The database interactions will still be sqlite based using the rusqlite crate. However, there will be a switch to using an [ORM][ref-ORM].
+
+The ORM provider will be [diesel][repo-diesel]. This should streamline database interactions and prevent writing large amounts of boilerplate code.
+
 ## Credits
 
 List any contributors, third-party libraries, or other resources you want to acknowledge here.
@@ -164,7 +170,9 @@ This project is licensed under the [GNU General Public License][license] v3.0. S
 
 [repo-cmd]: https://github.com/Spyder337/cmd
 [repo-shell]: https://github.com/Spyder337/nu-config
+[repo-diesel]: https://github.com/diesel-rs/diesel
 [api-paper-quotes]: https://paperquotes.com
 [api-forbes]: https://www.forbes.com/quotes/1/
 [license]: https://www.gnu.org/licenses/gpl-3.0.en.html
 [license-file]: LICENSE.md
+[ref-ORM]: <https://en.wikipedia.org/wiki/Object%E2%80%93relational_mapping#:~:text=Object%E2%80%93relational%20mapping%20(ORM%2C,an%20object-oriented%20programming%20language>

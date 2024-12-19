@@ -1,18 +1,29 @@
-CREATE TABLE
-  IF NOT EXISTS ShellCommanders (
-    ID INTEGER PRIMARY KEY AUTOINCREMENT,
-    VAR TEXT NOT NULL,
-    VAL TEXT,
-    UNIQUE (VAR)
-  );
-
+CREATE TABLE IF NOT EXISTS ShellCommanders (
+  ID INTEGER PRIMARY KEY AUTOINCREMENT,
+  VAR TEXT NOT NULL,
+  VAL TEXT,
+  UNIQUE (VAR)
+);
+CREATE TABLE IF NOT EXISTS Quotes (
+  ID INTEGER PRIMARY KEY AUTOINCREMENT,
+  QUOTE TEXT NOT NULL,
+  AUTHOR TEXT NOT NULL,
+  UNIQUE (QUOTE)
+);
+CREATE TABLE IF NOT EXISTS DailyQuotes(
+  ID INTEGER PRIMARY KEY AUTOINCREMENT,
+  QUOTE_ID INTEGER NOT NULL,
+  DATE DATE NOT NULL,
+  FOREIGN KEY (QUOTE_ID) REFERENCES Quotes(ID)
+);
 -- Change the default values to your own.
 INSERT
-OR IGNORE INTO ShellCommanders (VAR, VAL)
-VALUES
-  ('GIT_DIR', '~/Code'),
+  OR IGNORE INTO ShellCommanders (VAR, VAL)
+VALUES ('GIT_DIR', '~/Code'),
   ('GIT_AUTHOR', 'Author'),
   ('GIT_EMAIL', 'email.address@site.dom'),
-  ('GIT_IGNORE_URL', 'https://www.toptal.com/developers/gitignore');
-
+  (
+    'GIT_IGNORE_URL',
+    'https://www.toptal.com/developers/gitignore'
+  );
 COMMIT;
