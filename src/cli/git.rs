@@ -1,4 +1,8 @@
-use std::{fs, io::Write, path::Path}; // Add this line to import the crate
+use std::{
+    fs,
+    io::Write,
+    path::{self, Path},
+}; // Add this line to import the crate
 
 use clap::{Subcommand, ValueHint, command};
 use git2::{Repository, Status, StatusOptions};
@@ -252,21 +256,14 @@ fn update_exec(
         let statuses = r.statuses(Some(&mut StatusOptions::new()));
 
         for s in statuses.unwrap().iter().map(|a| a) {
-            if let Some(p) = s.path() {
-                for path in path_specs.clone() {
-                    if !p.contains(&path) {
-                        continue;
-                    }
-                }
-            }
             match s.status() {
-                Status::WT_NEW | Status::INDEX_NEW => {
+                Status::INDEX_NEW => {
                     status_msg.push_str(format!("A {}\n", s.path().unwrap()).as_str());
                 }
-                Status::WT_MODIFIED | Status::INDEX_MODIFIED => {
+                Status::INDEX_MODIFIED => {
                     status_msg.push_str(format!("M {}\n", s.path().unwrap()).as_str());
                 }
-                Status::WT_DELETED | Status::INDEX_DELETED => {
+                Status::INDEX_DELETED => {
                     status_msg.push_str(format!("D {}\n", s.path().unwrap()).as_str());
                 }
                 _ => (),
